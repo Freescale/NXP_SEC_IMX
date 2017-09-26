@@ -1,5 +1,8 @@
 1. Introduction about the demo:
-	This application is a linux user space code, which is a zmk programming example
+	This application is a linux user space code, which is a ZMK (Zeroizable Master Key) programming example. 
+	CAAM (Cryptographic Acceleration and Assurance Module)  uses to derive the cryptographic keys during 
+	blob encapsulation and decapsulation a secret 256-bit value. This secret value is either the 
+	OTPMK (one-time programmable master key) stored in fuses, a ZMK or a combination of the two.
 
 2. Build instructions:
    
