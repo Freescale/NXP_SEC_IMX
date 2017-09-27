@@ -1,0 +1,14 @@
+iMX Security Application Examples
+=================================
+
+Here will be posted different iMX security application examples (both for linux user-space or kernel space) 
+and the full steps necessary to build, deploy and test them.
+To see the details for a specific application, please go in a specific folder (e.g.: zmk). There you'll find
+out a Readme.txt file containing all the necessary details. 
+
+These programming examples are made by www.nxp.com, please check the license/copyright from every source file
+of a specific project and also if you have questions please contact the support from www.nxp.com and/or the 
+imx community [1].
+
+[1] https://community.nxp.com/community/imx
+
