@@ -181,160 +181,143 @@ int main(){
 	//A.1. Check transition SSM (System Security Monitor - see SNVS_HPSR[SSM_ST]) from check state to functional state (trusted/secure/non-secure)
 	printf("[INFO] \t A.1. Checking transition SSM (System Security Monitor - see SNVS_HPSR[SSM_ST]) from check state to functional state (trusted/secure/non-secure)\n");
 	unsigned char SSM_state = get_value_of_SNVS_reg_field(mem, SNVS_HPSR, SSM_ST_MASK, SSM_ST_OFFSET);
-	if ( SSM_state >= 0xB )
-	{
-		switch (SSM_state) {
-			case 0xb:
-				printf ("[INFO] \t\t System Security Monitor is in Non-Secure mode\n");
-				break;
-			case 0xd:
-				printf ("[INFO] \t\t System Security Monitor is in Trusted mode\n");
-				break;
-			case 0xf:
-				printf ("[INFO] \t\t System Security Monitor is in Secure mode\n");
-				break;
-			default:
-				printf ("[ERROR] \t\t System Security Monitor is in an undefined mode. Possible to have a hw problem or a Secure-boot issue (check HAB events.\n");
-				return EXIT_FAILURE;
-		}
-
-		//A.2. Set the correct value in the Power Glitch Detector Register
-		printf("[INFo] \t A.2. Set the correct value in the Power Glitch Detector Register.\n");
-		printf("[INFO] \t\t SNVS_LPPGDR power glitch before init 0x%x\n", *get_SNVS_reg(mem, SNVS_LPPGDR));
-		set_value_of_SNVS_reg(mem, SNVS_LPPGDR, POWER_GLITCH_VALUE);
-		printf("[INFO] \t\t SNVS_LPPGDR power glitch after init 0x%x\n", *get_SNVS_reg(mem, SNVS_LPPGDR));
-
-		//A.3. Clear the power glitch record in the LP Status Register
-		printf("[INFO] \t A.3. Clear the power glitch record in the LP Status Register.\n");
-		printf("[INFO] \t\t SNVS_LPSR  before init 0x%x\n", *get_SNVS_reg(mem, SNVS_LPSR));
-		set_value_of_SNVS_reg(mem, SNVS_LPSR, PGD_MASK);
-		printf("[INFO] \t\t SNVS_LPSR  after init 0x%x\n", *get_SNVS_reg(mem, SNVS_LPSR));
-
-		//B.1. Verify that  ZMK_HWP bit is not set - using SNVS_LPMKCR[ZMK_HWP]
-		printf("[INFO] \t B.1. Verify that ZMK_HWP bit is not set - using SNVS_LPMKCR[ZMK_HWP]\n");
-		printf("[INFO] \t\t SNVS_LPMKCR before check ZMK_HWP 0x%x\n", *get_SNVS_reg(mem, SNVS_LPMKCR));
-		unsigned char ZMK_HWP_state = get_value_of_SNVS_reg_field(mem, SNVS_LPMKCR, ZMK_HWP_MASK, ZMK_HWP_OFFSET);
-		if ( ZMK_HWP_state == 0x0 )
-		{
-			printf("[INFO] \t\t SNVS_LPMKCR[ZMK_HWP] Zeroizable Master Key hardware Programming mode is not set.\n");
-
-			//B.2. Verify that ZMK is not locked for write - using SNVS_HPLR, SNVS_LPLR registers
-			printf("[INFO] \t B.2. Verify that ZMK is not locked for write - using SNVS_HPLR, SNVS_LPLR registers\n");
-
-			printf("[INFO] \t\t SNVS_HPLR  before checking is 0x%x\n", *get_SNVS_reg(mem, SNVS_HPLR));
-			printf("[INFO] \t\t SNVS_LPLR  before checking is 0x%x\n", *get_SNVS_reg(mem, SNVS_LPLR));
-
-			unsigned char ZMK_WSL_state = get_value_of_SNVS_reg_field(mem, SNVS_HPLR, ZMK_WSL_MASK, ZMK_WSL_OFFSET);
-			unsigned char ZMK_RSL_state = get_value_of_SNVS_reg_field(mem, SNVS_HPLR, ZMK_RSL_MASK, ZMK_RSL_OFFSET);
-			unsigned char MKS_SL_state = get_value_of_SNVS_reg_field(mem, SNVS_HPLR, MKS_SL_MASK, MKS_SL_OFFSET);
-
-			unsigned char MKS_HL_state = get_value_of_SNVS_reg_field(mem, SNVS_LPLR, MKS_HL_MASK, MKS_HL_OFFSET);
-			unsigned char ZMK_RHL_state = get_value_of_SNVS_reg_field(mem, SNVS_LPLR, ZMK_RHL_MASK, ZMK_RHL_OFFSET);
-			unsigned char ZMK_WHL_state = get_value_of_SNVS_reg_field(mem, SNVS_LPLR, ZMK_WHL_MASK, ZMK_WHL_OFFSET);
-
-			if ((ZMK_WSL_state == 0x0) && (ZMK_RSL_state == 0x0) && (MKS_SL_state == 0x0)) {
-
-				printf("[INFO] \t\t SNVS_HPLR[ZMK_WSL,ZMK_RSL,MKS_SL] Zeroizable Master Write, Read, Select Soft Locks fields are not set.\n");
-
-				if ((ZMK_WHL_state == 0x0) && (ZMK_RHL_state == 0x0) && (MKS_HL_state == 0x0)) {
-					printf("[INFO] \t\t SNVS_LPLR[ZMK_WHL,ZMK_RHL,MKS_HL] Zeroizable Master Write, Read, Select Hard Locks fields are not set.\n");
-
-					printf("[INFO] \t\t SNVS_LPLR[MKS_HL] Master Key Select Hard Lock is not set.\n");
-
-					printf("[INFO] \t\t SNVS_LPLR[ZMK_RHL] Zeroizable Master Key Read Hard Lock is not set.\n");
-
-					printf("[INFO] \t B.3. Write key value to the ZMK registers.\n");
-
-					printf("[INFO] \t\t The ZMK key value before writing with 0x%x is 0x%x \n", ZMK_VALUE, *get_SNVS_reg(mem, SNVS_LPZMKRn));
-
-					set_value_of_SNVS_reg(mem, SNVS_LPZMKRn, ZMK_VALUE);
-
-					printf("[INFO] \t B.4. Verify that the correct key value is written.\n");
-					if (*get_SNVS_reg(mem, SNVS_LPZMKRn) == ZMK_VALUE) {
-						printf("[SUCCESS] \t\t The new ZMK key value is = 0x%x and matches with the user desired value.\n", *get_SNVS_reg(mem, SNVS_LPZMKRn));
-
-						printf("[INFO] \t B.5. Set SNVS_LPMKCR[ZMK_VAL] bit if the ZMK (or the ZMK XORed with the OTPMK) will be used by CAAM as the master key.\n");
-
-						printf("[INFO] \t\t SNVS_LPMKCR  before init 0x%x\n", *get_SNVS_reg(mem, SNVS_LPMKCR));
-						set_value_of_SNVS_reg(mem, SNVS_LPMKCR, ZMK_VAL_MASK);
-						printf("[INFO] \t\t SNVS_LPMKCR  after init 0x%x\n", *get_SNVS_reg(mem, SNVS_LPMKCR));
-
-						printf("[INFO] \t B.6 (optional) Set SNVS_LPMKCR[ZMK_ECC_EN] bit to enable ZMK error correction code verification. \
-								\n\t Software can verify that the correct nine bit codeword is generated by reading ZMK_ECC_VALUE field.\n");
-						set_value_of_SNVS_reg(mem, SNVS_LPMKCR, ZMK_ECC_EN);
-
-						printf("[INFO] \t B.7 (optional) Block software read accesses to the ZMK registers and ZMK_ECC_VALUE field by setting ZMK Read lock bit.\n");
-						printf("[INFO] \t B.8 (optional) Block software write accesses to the ZMK registers by setting ZMK Write Lock bit.\n");
-
-						if (RESET == POR) {
-							//POR to clear next bits
-							set_value_of_SNVS_reg(mem, SNVS_LPLR, ZMK_RHL_MASK);
-							set_value_of_SNVS_reg(mem, SNVS_LPLR, ZMK_WHL_MASK);
-						}
-						else {
-							//system reset to clear next bits
-							set_value_of_SNVS_reg(mem, SNVS_HPLR, ZMK_RSL_MASK);
-							set_value_of_SNVS_reg(mem, SNVS_HPLR, ZMK_WSL_MASK);
-						}
-
-						//Let some time for SNVS_LPZMKRn to be cleared after ZMK_RHL was set
-						#define TIMEOUT_MAX_VAL 0x1000
-						volatile int i = 0;
-						for (i=0; i<TIMEOUT_MAX_VAL; i++){}
-
-						printf("[INFO] \t\t [SECURITY_CHECK] if SNVS_LPZMKRn is zero'd after ZMK_RHL was set\n");
-						if (*get_SNVS_reg(mem, SNVS_LPZMKRn) == 0x0) {
-							printf("[INFO] \t\t [PASSED] - SNVS_LPZMKRn is 0x0 and cannot be read by a hacker\n");
-						}
-						else {
-							printf("[INFO] \t\t [FAILED] - SNVS_LPZMKRn is 0x%x and can be read by a hacker. Try to increase the TIMEOUT_MAX_VAL\n", *get_SNVS_reg(mem, SNVS_LPZMKRn));
-						}
-
-						printf("[INFO] \t B.9. Set SNVS_LPMKCR[MASTER_KEY_SEL] and SNVS_HPCOMR[MKS_EN] bits to select combination of OTPMK and ZMK to be provided to the hardware cryptographic module.\n");
-						printf("[INFO] \t\t For our example MASTER_KEY_SEL is set as 0b10 - Select zeroizable master key when MKS_EN bit is set.\n");
-						set_value_of_SNVS_reg(mem, SNVS_LPMKCR, MASTER_KEY_SEL_VALUE);
-						printf("[INFO] \t\t SNVS_LPMKCR  after init 0x%x\n", *get_SNVS_reg(mem, SNVS_LPMKCR));
-
-						printf("[INFO] \t\t SNVS_HPCOMR  before init 0x%x\n", *get_SNVS_reg(mem, SNVS_HPCOMR));
-						set_value_of_SNVS_reg(mem, SNVS_HPCOMR, MKS_EN_MASK);
-						printf("[INFO] \t\t SNVS_HPCOMR  after init 0x%x\n", *get_SNVS_reg(mem, SNVS_HPCOMR));
-
-						printf("[INFO] \t B.10 (optional) Block software write accesses to the MASTER_KEY_SEL field by setting MKS lock bit.\n");
-
-						if (RESET == POR) {
-							//POR to clear next bit
-							set_value_of_SNVS_reg(mem, SNVS_LPLR, MKS_HL_MASK);
-						}
-						else {
-							//system reset to clear next bit
-							set_value_of_SNVS_reg(mem, SNVS_HPLR, MKS_SL_MASK);
-						}
-					}
-					else {
-						printf("[ERROR] \t\t The new ZMK key value 0x%x is not matching with the user desire value!!! \n", *get_SNVS_reg(mem, SNVS_LPZMKRn));
-					}
-				}
-				else {
-					printf("[ERROR] \t\t SNVS_LPLR[ZMK_WHL,ZMK_RHL,MKS_HL] Zeroizable Master Write, Read, Select Hard Locks one of these bits are set - Write access is not allowed.\
-					Once set, these bits can only be cleared by the LP LOR. \n");
-					return EXIT_FAILURE;
-				}
-			}
-			else {
-				printf("[ERROR] \t\t SNVS_HPLR[ZMK_WSL,ZMK_RSL,MKS_SL] Zeroizable Master Write, Read, Select Soft Locks one of these bits are set - Write access is not allowed.\
-				Once set, these bits can only be cleared by system reset. \n");
-				return EXIT_FAILURE;
-			}
-		}
-		else {
-			printf("[ERROR] \t\t  SNVS_LPMKCR[ZMK_HWP] Zeroizable Master Key hardware Programming mode is set.  \
-			ZMK is in the hardware programming mode, cannot be programmed by software. See the ZMK hardware programming mechanism in Security RM.\n");
-			return EXIT_FAILURE;
-		}
-	}
-	else {
+	if (SSM_state < 0xB) {
 		printf("[ERROR] \t\t Transition of SSM[System Security Monitor] is not trusted, secure or non-secure. Please check the Security Reference Manual for more details.\n");
 		return EXIT_FAILURE;
+	}
+	switch (SSM_state) {
+		case 0xb:
+			printf ("[INFO] \t\t System Security Monitor is in Non-Secure mode\n");
+			break;
+		case 0xd:
+			printf ("[INFO] \t\t System Security Monitor is in Trusted mode\n");
+			break;
+		case 0xf:
+			printf ("[INFO] \t\t System Security Monitor is in Secure mode\n");
+			break;
+		default:
+			printf ("[ERROR] \t\t System Security Monitor is in an undefined mode. Possible to have a hw problem or a Secure-boot issue (check HAB events.\n");
+			return EXIT_FAILURE;
+	}
+
+	//A.2. Set the correct value in the Power Glitch Detector Register
+	printf("[INFO] \t A.2. Set the correct value in the Power Glitch Detector Register.\n");
+	printf("[INFO] \t\t SNVS_LPPGDR power glitch before init 0x%x\n", *get_SNVS_reg(mem, SNVS_LPPGDR));
+	set_value_of_SNVS_reg(mem, SNVS_LPPGDR, POWER_GLITCH_VALUE);
+	printf("[INFO] \t\t SNVS_LPPGDR power glitch after init 0x%x\n", *get_SNVS_reg(mem, SNVS_LPPGDR));
+
+	//A.3. Clear the power glitch record in the LP Status Register
+	printf("[INFO] \t A.3. Clear the power glitch record in the LP Status Register.\n");
+	printf("[INFO] \t\t SNVS_LPSR  before init 0x%x\n", *get_SNVS_reg(mem, SNVS_LPSR));
+	set_value_of_SNVS_reg(mem, SNVS_LPSR, PGD_MASK);
+	printf("[INFO] \t\t SNVS_LPSR  after init 0x%x\n", *get_SNVS_reg(mem, SNVS_LPSR));
+
+	//B.1. Verify that  ZMK_HWP bit is not set - using SNVS_LPMKCR[ZMK_HWP]
+	printf("[INFO] \t B.1. Verify that ZMK_HWP bit is not set - using SNVS_LPMKCR[ZMK_HWP]\n");
+	printf("[INFO] \t\t SNVS_LPMKCR before check ZMK_HWP 0x%x\n", *get_SNVS_reg(mem, SNVS_LPMKCR));
+	unsigned char ZMK_HWP_state = get_value_of_SNVS_reg_field(mem, SNVS_LPMKCR, ZMK_HWP_MASK, ZMK_HWP_OFFSET);
+	if (ZMK_HWP_state) {
+		printf("[ERROR] \t\t  SNVS_LPMKCR[ZMK_HWP] Zeroizable Master Key hardware Programming mode is set.  \
+		ZMK is in the hardware programming mode, cannot be programmed by software. See the ZMK hardware programming mechanism in Security RM.\n");
+		return EXIT_FAILURE;
+	}
+	printf("[INFO] \t\t SNVS_LPMKCR[ZMK_HWP] Zeroizable Master Key hardware Programming mode is not set.\n");
+
+	//B.2. Verify that ZMK is not locked for write - using SNVS_HPLR, SNVS_LPLR registers
+	printf("[INFO] \t B.2. Verify that ZMK is not locked for write - using SNVS_HPLR, SNVS_LPLR registers\n");
+
+	printf("[INFO] \t\t SNVS_HPLR  before checking is 0x%x\n", *get_SNVS_reg(mem, SNVS_HPLR));
+	printf("[INFO] \t\t SNVS_LPLR  before checking is 0x%x\n", *get_SNVS_reg(mem, SNVS_LPLR));
+
+	unsigned char ZMK_WSL_state = get_value_of_SNVS_reg_field(mem, SNVS_HPLR, ZMK_WSL_MASK, ZMK_WSL_OFFSET);
+	unsigned char ZMK_RSL_state = get_value_of_SNVS_reg_field(mem, SNVS_HPLR, ZMK_RSL_MASK, ZMK_RSL_OFFSET);
+	unsigned char MKS_SL_state = get_value_of_SNVS_reg_field(mem, SNVS_HPLR, MKS_SL_MASK, MKS_SL_OFFSET);
+
+	unsigned char MKS_HL_state = get_value_of_SNVS_reg_field(mem, SNVS_LPLR, MKS_HL_MASK, MKS_HL_OFFSET);
+	unsigned char ZMK_RHL_state = get_value_of_SNVS_reg_field(mem, SNVS_LPLR, ZMK_RHL_MASK, ZMK_RHL_OFFSET);
+	unsigned char ZMK_WHL_state = get_value_of_SNVS_reg_field(mem, SNVS_LPLR, ZMK_WHL_MASK, ZMK_WHL_OFFSET);
+
+	if (ZMK_WSL_state || ZMK_RSL_state || MKS_SL_state) {
+		printf("[ERROR] \t\t SNVS_HPLR[ZMK_WSL,ZMK_RSL,MKS_SL] Zeroizable Master Write, Read, Select Soft Locks one of these bits are set - Write access is not allowed.\
+		Once set, these bits can only be cleared by system reset. \n");
+		return EXIT_FAILURE;
+	}
+
+	printf("[INFO] \t\t SNVS_HPLR[ZMK_WSL,ZMK_RSL,MKS_SL] Zeroizable Master Write, Read, Select Soft Locks fields are not set.\n");
+
+	if (ZMK_WHL_state || ZMK_RHL_state || MKS_HL_state) {
+		printf("[ERROR] \t\t SNVS_LPLR[ZMK_WHL,ZMK_RHL,MKS_HL] Zeroizable Master Write, Read, Select Hard Locks one of these bits are set - Write access is not allowed.\
+		Once set, these bits can only be cleared by the LP LOR. \n");
+		return EXIT_FAILURE;
+	}
+
+	printf("[INFO] \t\t SNVS_LPLR[ZMK_WHL,ZMK_RHL,MKS_HL] Zeroizable Master Write, Read, Select Hard Locks fields are not set.\n");
+	printf("[INFO] \t\t SNVS_LPLR[MKS_HL] Master Key Select Hard Lock is not set.\n");
+	printf("[INFO] \t\t SNVS_LPLR[ZMK_RHL] Zeroizable Master Key Read Hard Lock is not set.\n");
+	printf("[INFO] \t B.3. Write key value to the ZMK registers.\n");
+	printf("[INFO] \t\t The ZMK key value before writing with 0x%x is 0x%x \n", ZMK_VALUE, *get_SNVS_reg(mem, SNVS_LPZMKRn));
+
+	set_value_of_SNVS_reg(mem, SNVS_LPZMKRn, ZMK_VALUE);
+
+	printf("[INFO] \t B.4. Verify that the correct key value is written.\n");
+	if (*get_SNVS_reg(mem, SNVS_LPZMKRn) != ZMK_VALUE) {
+		printf("[ERROR] \t\t The new ZMK key value 0x%x is not matching with the user desire value!!! \n", *get_SNVS_reg(mem, SNVS_LPZMKRn));
+		return EXIT_FAILURE;
+	}
+	printf("[SUCCESS] \t\t The new ZMK key value is = 0x%x and matches with the user desired value.\n", *get_SNVS_reg(mem, SNVS_LPZMKRn));
+
+	printf("[INFO] \t B.5. Set SNVS_LPMKCR[ZMK_VAL] bit if the ZMK (or the ZMK XORed with the OTPMK) will be used by CAAM as the master key.\n");
+
+	printf("[INFO] \t\t SNVS_LPMKCR  before init 0x%x\n", *get_SNVS_reg(mem, SNVS_LPMKCR));
+	set_value_of_SNVS_reg(mem, SNVS_LPMKCR, ZMK_VAL_MASK);
+	printf("[INFO] \t\t SNVS_LPMKCR  after init 0x%x\n", *get_SNVS_reg(mem, SNVS_LPMKCR));
+
+	printf("[INFO] \t B.6 (optional) Set SNVS_LPMKCR[ZMK_ECC_EN] bit to enable ZMK error correction code verification. \
+								\n\t Software can verify that the correct nine bit codeword is generated by reading ZMK_ECC_VALUE field.\n");
+	set_value_of_SNVS_reg(mem, SNVS_LPMKCR, ZMK_ECC_EN);
+
+	printf("[INFO] \t B.7 (optional) Block software read accesses to the ZMK registers and ZMK_ECC_VALUE field by setting ZMK Read lock bit.\n");
+	printf("[INFO] \t B.8 (optional) Block software write accesses to the ZMK registers by setting ZMK Write Lock bit.\n");
+
+	if (RESET == POR) {
+		//POR to clear next bits
+		set_value_of_SNVS_reg(mem, SNVS_LPLR, ZMK_RHL_MASK);
+		set_value_of_SNVS_reg(mem, SNVS_LPLR, ZMK_WHL_MASK);
+	} else {
+		//system reset to clear next bits
+		set_value_of_SNVS_reg(mem, SNVS_HPLR, ZMK_RSL_MASK);
+		set_value_of_SNVS_reg(mem, SNVS_HPLR, ZMK_WSL_MASK);
+	}
+
+	//Let some time for SNVS_LPZMKRn to be cleared after ZMK_RHL was set
+	#define TIMEOUT_MAX_VAL 0x1000
+	volatile int i;
+	for (i = 0; i < TIMEOUT_MAX_VAL; i++) {}
+
+	printf("[INFO] \t\t [SECURITY_CHECK] if SNVS_LPZMKRn is zero'd after ZMK_RHL was set\n");
+	if (*get_SNVS_reg(mem, SNVS_LPZMKRn) == 0x0) {
+		printf("[INFO] \t\t [PASSED] - SNVS_LPZMKRn is 0x0 and cannot be read by a hacker\n");
+	} else {
+		printf("[INFO] \t\t [FAILED] - SNVS_LPZMKRn is 0x%x and can be read by a hacker. Try to increase the TIMEOUT_MAX_VAL\n", *get_SNVS_reg(mem, SNVS_LPZMKRn));
+	}
+
+	printf("[INFO] \t B.9. Set SNVS_LPMKCR[MASTER_KEY_SEL] and SNVS_HPCOMR[MKS_EN] bits to select combination of OTPMK and ZMK to be provided to the hardware cryptographic module.\n");
+	printf("[INFO] \t\t For our example MASTER_KEY_SEL is set as 0b10 - Select zeroizable master key when MKS_EN bit is set.\n");
+	set_value_of_SNVS_reg(mem, SNVS_LPMKCR, MASTER_KEY_SEL_VALUE);
+	printf("[INFO] \t\t SNVS_LPMKCR  after init 0x%x\n", *get_SNVS_reg(mem, SNVS_LPMKCR));
+
+	printf("[INFO] \t\t SNVS_HPCOMR  before init 0x%x\n", *get_SNVS_reg(mem, SNVS_HPCOMR));
+	set_value_of_SNVS_reg(mem, SNVS_HPCOMR, MKS_EN_MASK);
+	printf("[INFO] \t\t SNVS_HPCOMR  after init 0x%x\n", *get_SNVS_reg(mem, SNVS_HPCOMR));
+
+	printf("[INFO] \t B.10 (optional) Block software write accesses to the MASTER_KEY_SEL field by setting MKS lock bit.\n");
+
+	if (RESET == POR) {
+		//POR to clear next bit
+		set_value_of_SNVS_reg(mem, SNVS_LPLR, MKS_HL_MASK);
+	} else {
+		//system reset to clear next bit
+		set_value_of_SNVS_reg(mem, SNVS_HPLR, MKS_SL_MASK);
 	}
 
 	return EXIT_SUCCESS;
