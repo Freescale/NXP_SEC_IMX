@@ -156,13 +156,13 @@ int main(){
 	int fd = open("/dev/mem", O_SYNC | O_RDWR);
 	if (fd < 0) {
 		perror ("Can't open /dev/mem!\n");
-		return -1;
+		return EXIT_FAILURE;
 	}
 
 	unsigned int *mem = mmap (NULL, ADDR_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, SNVS_BASE_REG);
 	if (mem == MAP_FAILED) {
 		perror ("Can't map memory, maybe the address is not truncated\n");
-		return -1;
+		return EXIT_FAILURE;
 	}
 
 	unsigned int rev1 = *get_SNVS_reg(mem, SNVS_HPVIDR1);
@@ -195,7 +195,7 @@ int main(){
 				break;
 			default:
 				printf ("[ERROR] \t\t System Security Monitor is in an undefined mode. Possible to have a hw problem or a Secure-boot issue (check HAB events.\n");
-				return -1;
+				return EXIT_FAILURE;
 		}
 
 		//A.2. Set the correct value in the Power Glitch Detector Register
@@ -317,25 +317,25 @@ int main(){
 				else {
 					printf("[ERROR] \t\t SNVS_LPLR[ZMK_WHL,ZMK_RHL,MKS_HL] Zeroizable Master Write, Read, Select Hard Locks one of these bits are set - Write access is not allowed.\
 					Once set, these bits can only be cleared by the LP LOR. \n");
-					return -1;
+					return EXIT_FAILURE;
 				}
 			}
 			else {
 				printf("[ERROR] \t\t SNVS_HPLR[ZMK_WSL,ZMK_RSL,MKS_SL] Zeroizable Master Write, Read, Select Soft Locks one of these bits are set - Write access is not allowed.\
 				Once set, these bits can only be cleared by system reset. \n");
-				return -1;
+				return EXIT_FAILURE;
 			}
 		}
 		else {
 			printf("[ERROR] \t\t  SNVS_LPMKCR[ZMK_HWP] Zeroizable Master Key hardware Programming mode is set.  \
 			ZMK is in the hardware programming mode, cannot be programmed by software. See the ZMK hardware programming mechanism in Security RM.\n");
-			return -1;
+			return EXIT_FAILURE;
 		}
 	}
 	else {
 		printf("[ERROR] \t\t Transition of SSM[System Security Monitor] is not trusted, secure or non-secure. Please check the Security Reference Manual for more details.\n");
-		return -1;
+		return EXIT_FAILURE;
 	}
 
-	return 0;
+	return EXIT_SUCCESS;
 }
